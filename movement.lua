@@ -1,7 +1,9 @@
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local LocalPlayer = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
+-- ==================== ПЕРЕМЕННЫЕ ====================
 local InfiniteJumpEnabled = false
 local NoClipEnabled = false
 local NoclipConnection = nil
@@ -10,15 +12,21 @@ local FlyEnabled = false
 local FlySpeed = 50
 local bg, bv, flyingConn
 
--- Infinite Jump
+local SpeedHackEnabled = false
+local SpeedHackValue = 50
+local OriginalWalkSpeed = 16
+
+-- ==================== INFINITE JUMP ====================
 UserInputService.JumpRequest:Connect(function()
     if not InfiniteJumpEnabled then return end
     local Char = LocalPlayer.Character
     local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
-    if Hum then Hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    if Hum and Hum.Health > 0 then
+        Hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
 end)
 
--- NoClip
+-- ==================== NOCLIP ====================
 local function StartNoClip()
     if NoclipConnection then NoclipConnection:Disconnect() end
     NoclipConnection = RunService.Stepped:Connect(function()
@@ -26,23 +34,30 @@ local function StartNoClip()
         local Char = LocalPlayer.Character
         if Char then
             for _, part in pairs(Char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
             end
         end
     end)
 end
 
 local function StopNoClip()
-    if NoclipConnection then NoclipConnection:Disconnect() NoclipConnection = nil end
+    if NoclipConnection then 
+        NoclipConnection:Disconnect() 
+        NoclipConnection = nil 
+    end
     local Char = LocalPlayer.Character
     if Char then
         for _, part in pairs(Char:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = true end
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
         end
     end
 end
 
--- Fly
+-- ==================== FLY ====================
 local function StartFly()
     local Char = LocalPlayer.Character
     if not Char then return end
@@ -60,7 +75,7 @@ local function StartFly()
 
     bv = Instance.new("BodyVelocity", Root)
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Velocity = Vector3.new(0,0.1,0)
+    bv.Velocity = Vector3.new(0, 0.1, 0)
 
     flyingConn = RunService.RenderStepped:Connect(function()
         if not FlyEnabled then return end
@@ -97,11 +112,61 @@ local function StopFly()
     end
 end
 
+-- ==================== SPEED HACK ====================
+local function ApplySpeedHack()
+    local Char = LocalPlayer.Character
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+    if Hum then
+        Hum.WalkSpeed = SpeedHackValue
+    end
+end
+
+local function StartSpeedHack()
+    SpeedHackEnabled = true
+    OriginalWalkSpeed = 16 -- стандартная скорость
+
+    -- Применяем сразу
+    ApplySpeedHack()
+
+    -- Обновляем при респавне
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if SpeedHackEnabled then
+            ApplySpeedHack()
+        end
+    end)
+end
+
+local function StopSpeedHack()
+    SpeedHackEnabled = false
+    local Char = LocalPlayer.Character
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+    if Hum then
+        Hum.WalkSpeed = OriginalWalkSpeed
+    end
+end
+
+-- ==================== ИНИЦИАЛИЗАЦИЯ GUI ====================
 return {
     Init = function(MovementGroup)
-        MovementGroup:AddToggle("InfiniteJumpToggle", {Text = "Infinite Jump", Default = false, Callback = function(v) InfiniteJumpEnabled = v end})
-        MovementGroup:AddToggle("NoClipToggle", {Text = "NoClip", Default = false, Callback = function(v) NoClipEnabled = v if v then StartNoClip() else StopNoClip() end end})
+        -- Infinite Jump
+        MovementGroup:AddToggle("InfiniteJumpToggle", {
+            Text = "Infinite Jump", 
+            Default = false, 
+            Callback = function(v) InfiniteJumpEnabled = v end
+        })
 
+        -- NoClip
+        MovementGroup:AddToggle("NoClipToggle", {
+            Text = "NoClip", 
+            Default = false, 
+            Callback = function(v) 
+                NoClipEnabled = v 
+                if v then StartNoClip() else StopNoClip() end 
+            end
+        })
+
+        -- Fly
         MovementGroup:AddToggle("FlyToggle", {
             Text = "Fly",
             Default = false,
@@ -118,6 +183,33 @@ return {
             Max = 300,
             Rounding = 0,
             Callback = function(v) FlySpeed = v end
+        })
+
+        -- ==================== SPEED HACK ====================
+        MovementGroup:AddToggle("SpeedHackToggle", {
+            Text = "Speed Hack",
+            Default = false,
+            Callback = function(v)
+                if v then
+                    StartSpeedHack()
+                else
+                    StopSpeedHack()
+                end
+            end
+        })
+
+        MovementGroup:AddSlider("SpeedHackSlider", {
+            Text = "WalkSpeed",
+            Default = 50,
+            Min = 16,
+            Max = 500,
+            Rounding = 0,
+            Callback = function(v)
+                SpeedHackValue = v
+                if SpeedHackEnabled then
+                    ApplySpeedHack()
+                end
+            end
         })
     end
 }
