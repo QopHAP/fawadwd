@@ -16,6 +16,8 @@ local SpeedHackEnabled = false
 local SpeedHackValue = 50
 local OriginalWalkSpeed = 16
 
+local SpeedConnection = nil
+
 -- ==================== INFINITE JUMP ====================
 UserInputService.JumpRequest:Connect(function()
     if not InfiniteJumpEnabled then return end
@@ -34,7 +36,7 @@ local function StartNoClip()
         local Char = LocalPlayer.Character
         if Char then
             for _, part in pairs(Char:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
+                if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
@@ -112,33 +114,31 @@ local function StopFly()
     end
 end
 
--- ==================== SPEED HACK ====================
-local function ApplySpeedHack()
-    local Char = LocalPlayer.Character
-    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
-    if Hum then
-        Hum.WalkSpeed = SpeedHackValue
-    end
-end
-
+-- ==================== SPEED HACK (ИСПРАВЛЕННЫЙ) ====================
 local function StartSpeedHack()
     SpeedHackEnabled = true
-    OriginalWalkSpeed = 16 -- стандартная скорость
-
-    -- Применяем сразу
-    ApplySpeedHack()
-
-    -- Обновляем при респавне
-    LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if SpeedHackEnabled then
-            ApplySpeedHack()
+    
+    if SpeedConnection then SpeedConnection:Disconnect() end
+    
+    SpeedConnection = RunService.Heartbeat:Connect(function()
+        if not SpeedHackEnabled then return end
+        
+        local Char = LocalPlayer.Character
+        local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+        
+        if Hum and Hum.Health > 0 then
+            Hum.WalkSpeed = SpeedHackValue
         end
     end)
 end
 
 local function StopSpeedHack()
     SpeedHackEnabled = false
+    if SpeedConnection then
+        SpeedConnection:Disconnect()
+        SpeedConnection = nil
+    end
+    
     local Char = LocalPlayer.Character
     local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     if Hum then
@@ -146,7 +146,7 @@ local function StopSpeedHack()
     end
 end
 
--- ==================== ИНИЦИАЛИЗАЦИЯ GUI ====================
+-- ==================== ИНИЦИАЛИЗАЦИЯ ====================
 return {
     Init = function(MovementGroup)
         -- Infinite Jump
@@ -206,8 +206,13 @@ return {
             Rounding = 0,
             Callback = function(v)
                 SpeedHackValue = v
+                -- Если спидхак включён — сразу применяем новое значение
                 if SpeedHackEnabled then
-                    ApplySpeedHack()
+                    local Char = LocalPlayer.Character
+                    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+                    if Hum then
+                        Hum.WalkSpeed = v
+                    end
                 end
             end
         })
