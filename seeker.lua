@@ -1,101 +1,82 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
+local MAX_AMMO = 9999  -- ← Изменили с 2 на 9999
 local InfAmmoConn = nil
-local MAX_AMMO = 2
+local ReloadConnection = nil
 
-local function ForceNoReload()
+local function StopReloadAnimation()
     local Character = LocalPlayer.Character
     if not Character then return end
-
-    -- Попытка 1: Через Viewmodel (как в Aim Practice)
-    local success, Viewmodel = pcall(function()
-        return require(ReplicatedStorage:WaitForChild("GunRegistry"):WaitForChild("Viewmodel"))
-    end)
-
-    if success and Viewmodel then
-        -- Пытаемся отключить reload у текущего оружия
-        pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
-                -- Некоторые игры хранят текущий Viewmodel в персонаже
-                for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if v:IsA("ModuleScript") and v.Name:find("Viewmodel") then
-                        -- Это грубый, но иногда рабочий способ
-                    end
-                end
-            end
-        end)
-    end
-
-    -- Попытка 2: Агрессивное отключение анимаций
+    
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if Humanoid then
-        for _, track in pairs(Humanoid:GetPlayingAnimationTracks()) do
-            local id = track.Animation and track.Animation.AnimationId or ""
-            if id:lower():find("reload") or id:lower():find("reloading") or id:lower():find("pump") then
-                track:Stop(0)
-                track:AdjustSpeed(0)
-                pcall(function() track:Destroy() end)
-            end
+    if not Humanoid then return end
+
+    for _, track in pairs(Humanoid:GetPlayingAnimationTracks()) do
+        local animId = track.Animation and track.Animation.AnimationId or ""
+        if animId:lower():find("reload") or animId:lower():find("reloading") or animId:lower():find("pump") then
+            track:Stop(0)
+            track:AdjustSpeed(0)
         end
     end
 end
 
 local function StartInfAmmo()
     if InfAmmoConn then InfAmmoConn:Disconnect() end
+    if ReloadConnection then ReloadConnection:Disconnect() end
 
+    -- Ставим очень большое количество патронов
     LocalPlayer:SetAttribute("SeekerAmmo", MAX_AMMO)
 
     InfAmmoConn = LocalPlayer:GetAttributeChangedSignal("SeekerAmmo"):Connect(function()
-        local ammo = LocalPlayer:GetAttribute("SeekerAmmo")
-        if ammo and ammo < MAX_AMMO then
-            task.wait(0.015)
+        local current = LocalPlayer:GetAttribute("SeekerAmmo")
+        if current and current < MAX_AMMO then
+            task.wait(0.02)
             LocalPlayer:SetAttribute("SeekerAmmo", MAX_AMMO)
-            ForceNoReload()
+            StopReloadAnimation()
         end
     end)
 
-    -- Постоянный контроль
-    RunService.Heartbeat:Connect(function()
-        if LocalPlayer:GetAttribute("SeekerAmmo") == MAX_AMMO then
-            ForceNoReload()
+    -- Постоянная защита
+    ReloadConnection = RunService.Heartbeat:Connect(function()
+        if LocalPlayer:GetAttribute("SeekerAmmo") < MAX_AMMO then
+            LocalPlayer:SetAttribute("SeekerAmmo", MAX_AMMO)
+            StopReloadAnimation()
         end
-    end)
-
-    -- Дополнительно при каждом выстреле
-    LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.6)
-        ForceNoReload()
     end)
 end
 
 local function StopInfAmmo()
-    if InfAmmoConn then
-        InfAmmoConn:Disconnect()
-        InfAmmoConn = nil
+    if InfAmmoConn then 
+        InfAmmoConn:Disconnect() 
+        InfAmmoConn = nil 
+    end
+    if ReloadConnection then 
+        ReloadConnection:Disconnect() 
+        ReloadConnection = nil 
     end
 end
 
 return {
     Init = function(SeekGroup)
         SeekGroup:AddToggle("InfAmmoToggle", {
-            Text = "Бесконечные патроны + No Reload (Aggressive)",
+            Text = "Бесконечные патроны (9999)",
             Default = false,
             Callback = function(v)
-                if v then
-                    StartInfAmmo()
-                else
-                    StopInfAmmo()
+                if v then 
+                    StartInfAmmo() 
+                else 
+                    StopInfAmmo() 
                 end
             end
         })
 
         SeekGroup:AddButton({
-            Text = "Force No Reload (Разово)",
+            Text = "Поставить 9999 патронов (разово)",
             Func = function()
-                ForceNoReload()
+                LocalPlayer:SetAttribute("SeekerAmmo", 9999)
+                StopReloadAnimation()
             end
         })
     end
