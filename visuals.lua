@@ -1,163 +1,424 @@
+--by panda
+local workspace = game:GetService("Workspace")
+local player = game:GetService("Players").LocalPlayer
+local camera = workspace.CurrentCamera
+
+
+local on = true 
+
+local Box_Color = Color3.fromRGB(255, 255, 255) -- цвет бокса белиго чиста
+local Box_Thickness = 1.3
+local Box_Transparency = 1 
+
+local Tracers = true
+local Tracer_Color = Color3.fromRGB(0, 255, 50)
+local Tracer_Thickness = 1.4
+local Tracer_Transparency = 1 
+
+local Autothickness = false 
+
+local Team_Check = true
+local red = Color3.fromRGB(227, 52, 52)
+local green = Color3.fromRGB(88, 217, 24)
+
+local function NewLine()
+    local line = Drawing.new("Line")
+    line.Visible = false
+    line.From = Vector2.new(0, 0)
+    line.To = Vector2.new(1, 1)
+    line.Color = Box_Color
+    line.Thickness = Box_Thickness
+    line.Transparency = Box_Transparency
+    return line
+end
+
+
+for i, v in pairs(game.Players:GetChildren()) do
+
+    local lines = {
+        line1 = NewLine(),
+        line2 = NewLine(),
+        line3 = NewLine(),
+        line4 = NewLine(),
+        line5 = NewLine(),
+        line6 = NewLine(),
+        line7 = NewLine(),
+        line8 = NewLine(),
+        line9 = NewLine(),
+        line10 = NewLine(),
+        line11 = NewLine(),
+        line12 = NewLine(),
+        Tracer = NewLine()
+    }
+
+    lines.Tracer.Color = Tracer_Color
+    lines.Tracer.Thickness = Tracer_Thickness
+    lines.Tracer.Transparency = Tracer_Transparency
+
+
+    local function ESP()
+        local connection
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            if on and v.Character ~= nil and v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v.Name ~= player.Name and v.Character.Humanoid.Health > 0 and v.Character:FindFirstChild("Head") ~= nil then
+                local pos, vis = camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+                if vis then
+                    local Scale = v.Character.Head.Size.Y/2
+                    local Size = Vector3.new(2, 3, 1.5) * (Scale * 2) 
+
+                    local Top1 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, Size.Y, -Size.Z)).p)
+                    local Top2 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, Size.Y, Size.Z)).p)
+                    local Top3 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, Size.Y, Size.Z)).p)
+                    local Top4 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, Size.Y, -Size.Z)).p)
+
+                    local Bottom1 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, -Size.Y, -Size.Z)).p)
+                    local Bottom2 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, -Size.Y, Size.Z)).p)
+                    local Bottom3 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, -Size.Y, Size.Z)).p)
+                    local Bottom4 = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, -Size.Y, -Size.Z)).p)
+
+                    --линни 3де бокся
+                    lines.line1.From = Vector2.new(Top1.X, Top1.Y)
+                    lines.line1.To = Vector2.new(Top2.X, Top2.Y)
+
+                    lines.line2.From = Vector2.new(Top2.X, Top2.Y)
+                    lines.line2.To = Vector2.new(Top3.X, Top3.Y)
+
+                    lines.line3.From = Vector2.new(Top3.X, Top3.Y)
+                    lines.line3.To = Vector2.new(Top4.X, Top4.Y)
+
+                    lines.line4.From = Vector2.new(Top4.X, Top4.Y)
+                    lines.line4.To = Vector2.new(Top1.X, Top1.Y)
+
+
+                    lines.line5.From = Vector2.new(Bottom1.X, Bottom1.Y)
+                    lines.line5.To = Vector2.new(Bottom2.X, Bottom2.Y)
+
+                    lines.line6.From = Vector2.new(Bottom2.X, Bottom2.Y)
+                    lines.line6.To = Vector2.new(Bottom3.X, Bottom3.Y)
+
+                    lines.line7.From = Vector2.new(Bottom3.X, Bottom3.Y)
+                    lines.line7.To = Vector2.new(Bottom4.X, Bottom4.Y)
+
+                    lines.line8.From = Vector2.new(Bottom4.X, Bottom4.Y)
+                    lines.line8.To = Vector2.new(Bottom1.X, Bottom1.Y)
+
+
+                    lines.line9.From = Vector2.new(Bottom1.X, Bottom1.Y)
+                    lines.line9.To = Vector2.new(Top1.X, Top1.Y)
+
+                    lines.line10.From = Vector2.new(Bottom2.X, Bottom2.Y)
+                    lines.line10.To = Vector2.new(Top2.X, Top2.Y)
+
+                    lines.line11.From = Vector2.new(Bottom3.X, Bottom3.Y)
+                    lines.line11.To = Vector2.new(Top3.X, Top3.Y)
+
+                    lines.line12.From = Vector2.new(Bottom4.X, Bottom4.Y)
+                    lines.line12.To = Vector2.new(Top4.X, Top4.Y)
+
+
+                    if Tracers then
+                        local trace = camera:WorldToViewportPoint((v.Character.HumanoidRootPart.CFrame * CFrame.new(0, -Size.Y, 0)).p)
+
+                        lines.Tracer.From = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
+                        lines.Tracer.To = Vector2.new(trace.X, trace.Y)
+                    end
+
+
+                    if Team_Check then
+                        if v.TeamColor == player.TeamColor then
+                            for u, x in pairs(lines) do
+                                x.Color = green
+                            end
+                        else 
+                            for u, x in pairs(lines) do
+                                x.Color = red
+                            end
+                        end
+                    end
+
+
+                    if Autothickness then
+                        local distance = (player.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).magnitude
+                        local value = math.clamp(1/distance*100, 0.1, 4)
+                        for u, x in pairs(lines) do
+                            x.Thickness = value
+                        end
+                    else 
+                        for u, x in pairs(lines) do
+                            x.Thickness = Box_Thickness
+                        end
+                    end
+
+                    for u, x in pairs(lines) do
+                        if x ~= lines.Tracer then
+                            x.Visible = true
+                        end
+                    end
+                    if Tracers then
+                        lines.Tracer.Visible = true
+                    end
+                else 
+                    for u, x in pairs(lines) do
+                        x.Visible = false
+                    end
+                end
+            else 
+                for u, x in pairs(lines) do
+                    x.Visible = false
+                end
+                if game.Players:FindFirstChild(v.Name) == nil then
+                    connection:Disconnect()
+                end
+            end
+        end)
+    end
+    coroutine.wrap(ESP)()
+end
+
+game.Players.PlayerAdded:Connect(function(newplr)
+
+    local lines = {
+        line1 = NewLine(),
+        line2 = NewLine(),
+        line3 = NewLine(),
+        line4 = NewLine(),
+        line5 = NewLine(),
+        line6 = NewLine(),
+        line7 = NewLine(),
+        line8 = NewLine(),
+        line9 = NewLine(),
+        line10 = NewLine(),
+        line11 = NewLine(),
+        line12 = NewLine(),
+        Tracer = NewLine()
+    }
+
+    lines.Tracer.Color = Tracer_Color
+    lines.Tracer.Thickness = Tracer_Thickness
+    lines.Tracer.Transparency = Tracer_Transparency
+
+ 
+    local function ESP()
+        local connection
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            if on and newplr.Character ~= nil and newplr.Character:FindFirstChild("Humanoid") ~= nil and newplr.Character:FindFirstChild("HumanoidRootPart") ~= nil and newplr.Name ~= player.Name and newplr.Character.Humanoid.Health > 0 and newplr.Character:FindFirstChild("Head") ~= nil then
+                local pos, vis = camera:WorldToViewportPoint(newplr.Character.HumanoidRootPart.Position)
+                if vis then
+                    local Scale = newplr.Character.Head.Size.Y/2
+                    local Size = Vector3.new(2, 3, 1.5) * (Scale * 2)
+
+                    local Top1 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, Size.Y, -Size.Z)).p)
+                    local Top2 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, Size.Y, Size.Z)).p)
+                    local Top3 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, Size.Y, Size.Z)).p)
+                    local Top4 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, Size.Y, -Size.Z)).p)
+
+                    local Bottom1 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, -Size.Y, -Size.Z)).p)
+                    local Bottom2 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(-Size.X, -Size.Y, Size.Z)).p)
+                    local Bottom3 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, -Size.Y, Size.Z)).p)
+                    local Bottom4 = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(Size.X, -Size.Y, -Size.Z)).p)
+
+                    lines.line1.From = Vector2.new(Top1.X, Top1.Y)
+                    lines.line1.To = Vector2.new(Top2.X, Top2.Y)
+
+
+                    lines.line2.From = Vector2.new(Top2.X, Top2.Y)
+                    lines.line2.To = Vector2.new(Top3.X, Top3.Y)
+
+
+                    lines.line3.From = Vector2.new(Top3.X, Top3.Y)
+                    lines.line3.To = Vector2.new(Top4.X, Top4.Y)
+
+
+                    lines.line4.From = Vector2.new(Top4.X, Top4.Y)
+                    lines.line4.To = Vector2.new(Top1.X, Top1.Y)
+
+
+                    lines.line5.From = Vector2.new(Bottom1.X, Bottom1.Y)
+                    lines.line5.To = Vector2.new(Bottom2.X, Bottom2.Y)
+
+
+                    lines.line6.From = Vector2.new(Bottom2.X, Bottom2.Y)
+                    lines.line6.To = Vector2.new(Bottom3.X, Bottom3.Y)
+
+
+                    lines.line7.From = Vector2.new(Bottom3.X, Bottom3.Y)
+                    lines.line7.To = Vector2.new(Bottom4.X, Bottom4.Y)
+
+
+                    lines.line8.From = Vector2.new(Bottom4.X, Bottom4.Y)
+                    lines.line8.To = Vector2.new(Bottom1.X, Bottom1.Y)
+
+
+                    lines.line9.From = Vector2.new(Bottom1.X, Bottom1.Y)
+                    lines.line9.To = Vector2.new(Top1.X, Top1.Y)
+
+
+                    lines.line10.From = Vector2.new(Bottom2.X, Bottom2.Y)
+                    lines.line10.To = Vector2.new(Top2.X, Top2.Y)
+
+
+                    lines.line11.From = Vector2.new(Bottom3.X, Bottom3.Y)
+                    lines.line11.To = Vector2.new(Top3.X, Top3.Y)
+
+
+                    lines.line12.From = Vector2.new(Bottom4.X, Bottom4.Y)
+                    lines.line12.To = Vector2.new(Top4.X, Top4.Y)
+
+                   
+                    if Tracers then
+                        local trace = camera:WorldToViewportPoint((newplr.Character.HumanoidRootPart.CFrame * CFrame.new(0, -Size.Y, 0)).p)
+                        lines.Tracer.From = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
+                        lines.Tracer.To = Vector2.new(trace.X, trace.Y)
+                    end
+
+                   
+                    if Team_Check then
+                        if newplr.TeamColor == player.TeamColor then
+                            for u, x in pairs(lines) do
+                                x.Color = green
+                            end
+                        else 
+                            for u, x in pairs(lines) do
+                                x.Color = red
+                            end
+                        end
+                    end
+
+                    
+                    if Autothickness then
+                        local distance = (player.Character.HumanoidRootPart.Position - newplr.Character.HumanoidRootPart.Position).magnitude
+                        local value = math.clamp(1/distance*100, 0.1, 4) 
+                        for u, x in pairs(lines) do
+                            x.Thickness = value
+                        end
+                    else 
+                        for u, x in pairs(lines) do
+                            x.Thickness = Box_Thickness
+                        end
+                    end
+
+                    for u, x in pairs(lines) do
+                        if x ~= lines.Tracer then
+                            x.Visible = true
+                        end
+                    end
+                    if Tracers then
+                        lines.Tracer.Visible = true
+                    end
+                else 
+                    for u, x in pairs(lines) do
+                        x.Visible = false
+                    end
+                end
+            else 
+                for u, x in pairs(lines) do
+                    x.Visible = false
+                end
+                if game.Players:FindFirstChild(newplr.Name) == nil then
+                    connection:Disconnect()
+                end
+            end
+        end)
+    end
+    coroutine.wrap(ESP)()
+end)
+
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local ESPEnabled = false
-local NameESPEnabled = false
 
--- ==================== HIGHLIGHT ESP ====================
-local function ApplyESP(Player)
-    if Player == LocalPlayer then return end
-    local Char = Player.Character
-    if not Char then return end
-    local old = Char:FindFirstChild("RoleESP")
-    if old then old:Destroy() end
-    if not ESPEnabled then return end
+local function createHighlight(player)
+    if player.Character and not player.Character:FindFirstChild("ESPHighlight") then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+        highlight.FillTransparency = 0.5 
+        highlight.OutlineTransparency = 1
+        highlight.Adornee = player.Character
+        highlight.Parent = player.Character
+    end
+end
 
-    local Highlight = Instance.new("Highlight")
-    Highlight.Name = "RoleESP"
-    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    Highlight.FillTransparency = 0.5
-    Highlight.OutlineTransparency = 0
-    Highlight.Parent = Char
 
-    local function RefreshColor()
-        local Role = Player:GetAttribute("Role")
-        if Role == "HIDER" then
-            Highlight.FillColor = Color3.fromRGB(0, 255, 0)
-            Highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
-        elseif Role == "SEEKER" then
-            Highlight.FillColor = Color3.fromRGB(255, 0, 0)
-            Highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+local function createNameTag(player)
+    if player.Character and player.Character:FindFirstChild("Head") and not player.Character.Head:FindFirstChild("NameTag") then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "NameTag"
+        billboard.Adornee = player.Character.Head
+        billboard.Size = UDim2.new(0, 130, 0, 25) 
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = player.Character.Head
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Name = "TagLabel"
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+        textLabel.Font = Enum.Font.Cartoon
+        textLabel.TextScaled = true
+        textLabel.TextStrokeTransparency = 0.6
+        textLabel.Text = ""
+        textLabel.Parent = billboard
+    end
+end
+
+
+local function updateNameTag(player)
+    if player.Character and player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("NameTag") and player.Character:FindFirstChild("Humanoid") then
+        local tag = player.Character.Head.NameTag.TagLabel
+        local distance = (LocalPlayer.Character.PrimaryPart.Position - player.Character.PrimaryPart.Position).Magnitude
+        local health = math.floor(player.Character.Humanoid.Health)
+        tag.Text = player.Name .. " | " .. string.format("%.0f", distance).."m | HP"..health
+    end
+end
+
+
+local function updateHighlight(player)
+    if player.Character and player.Character:FindFirstChild("ESPHighlight") and player.Character:FindFirstChild("Humanoid") then
+        if player.Character.Humanoid.Health <= 0 then
+            player.Character.ESPHighlight.FillColor = Color3.fromRGB(255, 0, 0) 
         else
-            Highlight.FillColor = Color3.fromRGB(255, 255, 255)
-            Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        end
-    end
-    RefreshColor()
-
-    Player:GetAttributeChangedSignal("Role"):Connect(function()
-        if Char:FindFirstChild("RoleESP") == Highlight then RefreshColor() end
-    end)
-end
-
-local function RemoveESP(Player)
-    if not Player.Character then return end
-    local h = Player.Character:FindFirstChild("RoleESP")
-    if h then h:Destroy() end
-end
-
-local function UpdateAllESP()
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if ESPEnabled then ApplyESP(Player) else RemoveESP(Player) end
-    end
-end
-
--- ==================== NAME ESP ====================
-local function ApplyNameESP(Player)
-    if Player == LocalPlayer then return end
-    local Char = Player.Character
-    if not Char then return end
-
-    -- Удаляем старый NameTag
-    local oldTag = Char:FindFirstChild("RoleNameTag")
-    if oldTag then oldTag:Destroy() end
-
-    if not NameESPEnabled then return end
-
-    local Head = Char:FindFirstChild("Head")
-    if not Head then return end
-
-    local Billboard = Instance.new("BillboardGui")
-    Billboard.Name = "RoleNameTag"
-    Billboard.Adornee = Head
-    Billboard.Size = UDim2.new(0, 200, 0, 50)
-    Billboard.StudsOffset = Vector3.new(0, 3, 0)
-    Billboard.AlwaysOnTop = true
-    Billboard.Parent = Char
-
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Text = Player.Name
-    TextLabel.Font = Enum.Font.SourceSansBold
-    TextLabel.TextSize = 18
-    TextLabel.TextStrokeTransparency = 0.7
-    TextLabel.Parent = Billboard
-
-    local function RefreshNameColor()
-        local Role = Player:GetAttribute("Role")
-        if Role == "HIDER" then
-            TextLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        elseif Role == "SEEKER" then
-            TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-        else
-            TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        end
-    end
-
-    RefreshNameColor()
-
-    Player:GetAttributeChangedSignal("Role"):Connect(function()
-        if Char:FindFirstChild("RoleNameTag") then
-            RefreshNameColor()
-        end
-    end)
-end
-
-local function RemoveNameESP(Player)
-    if not Player.Character then return end
-    local tag = Player.Character:FindFirstChild("RoleNameTag")
-    if tag then tag:Destroy() end
-end
-
-local function UpdateAllNameESP()
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if NameESPEnabled then
-            ApplyNameESP(Player)
-        else
-            RemoveNameESP(Player)
+            player.Character.ESPHighlight.FillColor = Color3.fromRGB(255, 0, 0) 
         end
     end
 end
 
--- ==================== SETUP ====================
-local function SetupPlayer(Player)
-    if Player.Character then
-        ApplyESP(Player)
-        ApplyNameESP(Player)
-    end
 
-    Player.CharacterAdded:Connect(function(Char)
-        task.wait(0.5)
-        if ESPEnabled then ApplyESP(Player) end
-        if NameESPEnabled then ApplyNameESP(Player) end
-    end)
+local function setupESP(player)
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function()
+            wait(0.1)
+            createHighlight(player)
+            createNameTag(player)
+        end)
+        if player.Character then
+            createHighlight(player)
+            createNameTag(player)
+        end
+    end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do SetupPlayer(p) end
-Players.PlayerAdded:Connect(SetupPlayer)
 
--- ==================== INIT ====================
-return {
-    Init = function(ESPGroup)
-        -- Role Highlight ESP
-        ESPGroup:AddToggle("ESPToggle", {
-            Text = "Role ESP (Highlight)",
-            Default = false,
-            Callback = function(v)
-                ESPEnabled = v
-                UpdateAllESP()
+for _, player in ipairs(Players:GetPlayers()) do
+    setupESP(player)
+end
+
+
+Players.PlayerAdded:Connect(function(player)
+    setupESP(player)
+end)
+
+
+while true do
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                updateNameTag(player)
+                updateHighlight(player)
             end
-        })
-
-        -- Name ESP
-        ESPGroup:AddToggle("NameESPToggle", {
-            Text = "Name ESP",
-            Default = false,
-            Callback = function(v)
-                NameESPEnabled = v
-                UpdateAllNameESP()
-            end
-        })
+        end
     end
-}
+    wait(0.3)
+end
