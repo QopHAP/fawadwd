@@ -1,3 +1,4 @@
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local ESPEnabled = false
@@ -7,7 +8,25 @@ local NameESPEnabled = false
 local function ApplyESP(Player)
     if Player == LocalPlayer then return end
     local Char = Player.Character
-@@ -50,26 +52,112 @@ local function UpdateAllESP()
+    if not Char then return end
+
+    local Highlight = Char:FindFirstChild("RoleHighlight") or Instance.new("Highlight")
+    Highlight.Name = "RoleHighlight"
+    Highlight.FillColor = (Player:GetAttribute("Role") == "SEEKER") and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
+    Highlight.OutlineColor = Color3.new(1, 1, 1)
+    Highlight.FillTransparency = 0.5
+    Highlight.OutlineTransparency = 0
+    Highlight.Parent = Char
+end
+
+local function UpdateAllESP()
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if ESPEnabled then
+            ApplyESP(Player)
+        else
+            local hl = Player.Character and Player.Character:FindFirstChild("RoleHighlight")
+            if hl then hl:Destroy() end
+        end
     end
 end
 
@@ -81,28 +100,28 @@ end
 
 -- ==================== SETUP ====================
 local function SetupPlayer(Player)
-    if Player.Character then ApplyESP(Player) end
-    if Player.Character then
-        ApplyESP(Player)
-        ApplyNameESP(Player)
-    end
-
-    Player.CharacterAdded:Connect(function(Char)
+    Player.CharacterAdded:Connect(function()
         task.wait(0.5)
         if ESPEnabled then ApplyESP(Player) end
         if NameESPEnabled then ApplyNameESP(Player) end
     end)
+
+    -- Применяем сразу, если персонаж уже есть
+    if Player.Character then
+        if ESPEnabled then ApplyESP(Player) end
+        if NameESPEnabled then ApplyNameESP(Player) end
+    end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do SetupPlayer(p) end
+for _, p in ipairs(Players:GetPlayers()) do
+    SetupPlayer(p)
+end
 Players.PlayerAdded:Connect(SetupPlayer)
 
 -- ==================== INIT ====================
 return {
     Init = function(ESPGroup)
-        -- Role Highlight ESP
         ESPGroup:AddToggle("ESPToggle", {
-            Text = "Role ESP",
             Text = "Role ESP (Highlight)",
             Default = false,
             Callback = function(v)
@@ -111,7 +130,6 @@ return {
             end
         })
 
-        -- Name ESP
         ESPGroup:AddToggle("NameESPToggle", {
             Text = "Name ESP",
             Default = false,
