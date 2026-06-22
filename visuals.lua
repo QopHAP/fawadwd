@@ -1,137 +1,191 @@
+-- ======================== visuals.lua ========================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local ESPEnabled = false
 local NameESPEnabled = false
 
--- ==================== HIGHLIGHT ESP ====================
-local function ApplyESP(Player)
-    if Player == LocalPlayer then return end
-    local Char = Player.Character
-    if not Char then return end
+-- ---------- Highlight ESP ----------
+local function ApplyHighlight(player)
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then return end
 
-    local Highlight = Char:FindFirstChild("RoleHighlight") or Instance.new("Highlight")
-    Highlight.Name = "RoleHighlight"
-    Highlight.FillColor = (Player:GetAttribute("Role") == "SEEKER") and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
-    Highlight.OutlineColor = Color3.new(1, 1, 1)
-    Highlight.FillTransparency = 0.5
-    Highlight.OutlineTransparency = 0
-    Highlight.Parent = Char
+    -- Удаляем старый Highlight, если есть
+    local old = char:FindFirstChild("RoleHighlight")
+    if old then old:Destroy() end
+
+    -- Создаём новый Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "RoleHighlight"
+    highlight.OutlineColor = Color3.new(1, 1, 1)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+
+    -- Функция обновления цвета по роли
+    local function UpdateColor()
+        local role = player:GetAttribute("Role")
+        if role == "SEEKER" then
+            highlight.FillColor = Color3.fromRGB(255, 0, 0)   -- красный
+        elseif role == "HIDER" then
+            highlight.FillColor = Color3.fromRGB(0, 255, 0)   -- зелёный
+        else
+            highlight.FillColor = Color3.fromRGB(255, 255, 255) -- белый (лобби)
+        end
+    end
+
+    UpdateColor()
+    highlight.Parent = char
+
+    -- Следим за изменением роли
+    local roleChangedConn
+    roleChangedConn = player:GetAttributeChangedSignal("Role"):Connect(function()
+        if ESPEnabled and char and char.Parent then
+            UpdateColor()
+        else
+            -- Если ESP выключен или персонаж удалён, отключаем прослушку
+            if roleChangedConn then roleChangedConn:Disconnect() end
+        end
+    end)
+
+    -- Если персонаж удаляется, чистим подключение
+    char.AncestryChanged:Connect(function()
+        if not char.Parent then
+            if roleChangedConn then roleChangedConn:Disconnect() end
+        end
+    end)
 end
 
-local function UpdateAllESP()
-    for _, Player in ipairs(Players:GetPlayers()) do
+local function RemoveHighlight(player)
+    local char = player.Character
+    if char then
+        local hl = char:FindFirstChild("RoleHighlight")
+        if hl then hl:Destroy() end
+    end
+end
+
+local function UpdateAllHighlights()
+    for _, player in ipairs(Players:GetPlayers()) do
         if ESPEnabled then
-            ApplyESP(Player)
+            ApplyHighlight(player)
         else
-            local hl = Player.Character and Player.Character:FindFirstChild("RoleHighlight")
-            if hl then hl:Destroy() end
+            RemoveHighlight(player)
         end
     end
 end
 
--- ==================== NAME ESP ====================
-local function ApplyNameESP(Player)
-    if Player == LocalPlayer then return end
-    local Char = Player.Character
-    if not Char then return end
-
-    local oldTag = Char:FindFirstChild("RoleNameTag")
-    if oldTag then oldTag:Destroy() end
-
+-- ---------- Name ESP ----------
+local function ApplyNameTag(player)
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then return end
     if not NameESPEnabled then return end
 
-    local Head = Char:FindFirstChild("Head")
-    if not Head then return end
+    -- Удаляем старый тег
+    local oldTag = char:FindFirstChild("RoleNameTag")
+    if oldTag then oldTag:Destroy() end
 
-    local Billboard = Instance.new("BillboardGui")
-    Billboard.Name = "RoleNameTag"
-    Billboard.Adornee = Head
-    Billboard.Size = UDim2.new(0, 200, 0, 50)
-    Billboard.StudsOffset = Vector3.new(0, 3, 0)
-    Billboard.AlwaysOnTop = true
-    Billboard.Parent = Char
+    local head = char:FindFirstChild("Head")
+    if not head then return end
 
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Text = Player.Name
-    TextLabel.Font = Enum.Font.SourceSansBold
-    TextLabel.TextSize = 18
-    TextLabel.TextStrokeTransparency = 0.7
-    TextLabel.Parent = Billboard
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "RoleNameTag"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = char
 
-    local function RefreshNameColor()
-        local Role = Player:GetAttribute("Role")
-        if Role == "HIDER" then
-            TextLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        elseif Role == "SEEKER" then
-            TextLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = player.Name
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 18
+    label.TextStrokeTransparency = 0.7
+    label.Parent = billboard
+
+    local function UpdateNameColor()
+        local role = player:GetAttribute("Role")
+        if role == "SEEKER" then
+            label.TextColor3 = Color3.fromRGB(255, 0, 0)
+        elseif role == "HIDER" then
+            label.TextColor3 = Color3.fromRGB(0, 255, 0)
         else
-            TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            label.TextColor3 = Color3.fromRGB(255, 255, 255)
         end
     end
 
-    RefreshNameColor()
+    UpdateNameColor()
 
-    Player:GetAttributeChangedSignal("Role"):Connect(function()
-        if Char:FindFirstChild("RoleNameTag") then
-            RefreshNameColor()
+    -- Обновление цвета при смене роли
+    player:GetAttributeChangedSignal("Role"):Connect(function()
+        if char:FindFirstChild("RoleNameTag") then
+            UpdateNameColor()
         end
     end)
 end
 
-local function RemoveNameESP(Player)
-    if not Player.Character then return end
-    local tag = Player.Character:FindFirstChild("RoleNameTag")
-    if tag then tag:Destroy() end
+local function RemoveNameTag(player)
+    local char = player.Character
+    if char then
+        local tag = char:FindFirstChild("RoleNameTag")
+        if tag then tag:Destroy() end
+    end
 end
 
-local function UpdateAllNameESP()
-    for _, Player in ipairs(Players:GetPlayers()) do
+local function UpdateAllNameTags()
+    for _, player in ipairs(Players:GetPlayers()) do
         if NameESPEnabled then
-            ApplyNameESP(Player)
+            ApplyNameTag(player)
         else
-            RemoveNameESP(Player)
+            RemoveNameTag(player)
         end
     end
 end
 
--- ==================== SETUP ====================
-local function SetupPlayer(Player)
-    Player.CharacterAdded:Connect(function()
+-- ---------- Обработка игроков ----------
+local function SetupPlayer(player)
+    -- При пересоздании персонажа применяем ESP заново
+    player.CharacterAdded:Connect(function()
         task.wait(0.5)
-        if ESPEnabled then ApplyESP(Player) end
-        if NameESPEnabled then ApplyNameESP(Player) end
+        if ESPEnabled then ApplyHighlight(player) end
+        if NameESPEnabled then ApplyNameTag(player) end
     end)
 
-    if Player.Character then
-        if ESPEnabled then ApplyESP(Player) end
-        if NameESPEnabled then ApplyNameESP(Player) end
+    -- Если персонаж уже есть, применяем сразу
+    if player.Character then
+        if ESPEnabled then ApplyHighlight(player) end
+        if NameESPEnabled then ApplyNameTag(player) end
     end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do SetupPlayer(p) end
+-- Подключаем существующих и новых игроков
+for _, p in ipairs(Players:GetPlayers()) do
+    SetupPlayer(p)
+end
 Players.PlayerAdded:Connect(SetupPlayer)
 
--- ==================== INIT ====================
+-- ---------- Экспорт для главного скрипта ----------
 return {
-    Init = function(ESPGroup)
-        ESPGroup:AddToggle("ESPToggle", {
+    Init = function(espGroup)
+        -- Переключатель Highlight ESP
+        espGroup:AddToggle("ESPToggle", {
             Text = "Role ESP (Highlight)",
             Default = false,
             Callback = function(v)
                 ESPEnabled = v
-                UpdateAllESP()
+                UpdateAllHighlights()
             end
         })
 
-        ESPGroup:AddToggle("NameESPToggle", {
+        -- Переключатель Name ESP
+        espGroup:AddToggle("NameESPToggle", {
             Text = "Name ESP",
             Default = false,
             Callback = function(v)
                 NameESPEnabled = v
-                UpdateAllNameESP()
+                UpdateAllNameTags()
             end
         })
     end
