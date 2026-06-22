@@ -36,7 +36,6 @@ local function ApplyNameESP(Player)
     local Char = Player.Character
     if not Char then return end
 
-    -- Удаляем старый NameTag
     local oldTag = Char:FindFirstChild("RoleNameTag")
     if oldTag then oldTag:Destroy() end
 
@@ -106,16 +105,13 @@ local function SetupPlayer(Player)
         if NameESPEnabled then ApplyNameESP(Player) end
     end)
 
-    -- Применяем сразу, если персонаж уже есть
     if Player.Character then
         if ESPEnabled then ApplyESP(Player) end
         if NameESPEnabled then ApplyNameESP(Player) end
     end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do
-    SetupPlayer(p)
-end
+for _, p in ipairs(Players:GetPlayers()) do SetupPlayer(p) end
 Players.PlayerAdded:Connect(SetupPlayer)
 
 -- ==================== INIT ====================
