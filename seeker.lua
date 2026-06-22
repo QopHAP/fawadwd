@@ -2,40 +2,10 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-local stopReloadConn = nil     -- для Heartbeat
-local animConnections = {}     -- для всех AnimationPlayed
+local stopReloadConn = nil
+local animConnections = {}
 local charAddedConn = nil
 local viewmodel = nil
-
--- ---------- Функция для монет ----------
-local function giveInfiniteCoins()
-    local player = LocalPlayer
-    if not player then return end
-
-    -- 1) Пытаемся найти RemoteFunction SetCurrency в ServerStorage
-    local serverStorage = game:GetService("ServerStorage")
-    local setCurrency = serverStorage:FindFirstChild("SetCurrency")
-
-    if setCurrency and setCurrency:IsA("RemoteFunction") then
-        -- Вызываем с огромным числом
-        local success, result = pcall(function()
-            return setCurrency:InvokeServer(player, "Coins", 999999999)
-        end)
-        if success then
-            print("[Coins] Успешно выдано: " .. tostring(result))
-            -- Можно показать уведомление, если есть библиотека уведомлений
-        else
-            warn("[Coins] Ошибка при вызове SetCurrency: " .. tostring(result))
-            -- Пробуем запасной вариант
-            player:SetAttribute("Coins", 999999999)
-            print("[Coins] Установлен локальный атрибут Coins (может не сохраниться)")
-        end
-    else
-        -- Если RemoteFunction нет, пробуем установить атрибут напрямую
-        player:SetAttribute("Coins", 999999999)
-        print("[Coins] SetCurrency не найден, установлен локальный атрибут Coins")
-    end
-end
 
 -- ---------- Блокировка перезарядки (ваш код) ----------
 local function isReloadAnimation(animTrack)
@@ -155,10 +125,30 @@ local function stopBlocking()
     print("[AntiReload] Блокировка выключена")
 end
 
+-- ---------- Safe mod: телепорт на Y = 70 ----------
+local function teleportToSafeHeight()
+    local char = LocalPlayer.Character
+    if not char then
+        warn("[SafeMod] Персонаж не найден")
+        return
+    end
+
+    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+    if not root then
+        warn("[SafeMod] Не найдена часть для телепортации")
+        return
+    end
+
+    local currentPos = root.Position
+    local newPos = Vector3.new(currentPos.X, 70, currentPos.Z)
+    root.CFrame = CFrame.new(newPos)
+    print("[SafeMod] Телепортирован на Y = 70")
+end
+
 -- ---------- Экспорт для меню ----------
 return {
     Init = function(SeekGroup)
-        -- Существующий переключатель для блокировки перезарядки
+        -- Переключатель для блокировки перезарядки
         SeekGroup:AddToggle("NoReloadToggle", {
             Text = "Убрать анимацию перезарядки",
             Default = false,
@@ -171,13 +161,13 @@ return {
             end
         })
 
-        -- Новая кнопка для монет
+        -- Новая кнопка Safe mod
         SeekGroup:AddButton({
-            Text = "Выдать бесконечные монеты",
+            Text = "Safe mod (подняться на Y=70)",
             Callback = function()
-                giveInfiniteCoins()
-                -- Можно также показать уведомление, если библиотека поддерживает
-                -- Library:Notify({ Title = "Coins", Description = "Монеты выданы!", Duration = 3 })
+                teleportToSafeHeight()
+                -- Если у вас есть библиотека уведомлений, можно добавить:
+                -- Library:Notify({ Title = "Safe Mod", Description = "Телепорт выполнен!", Duration = 2 })
             end
         })
     end
