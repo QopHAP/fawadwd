@@ -7,7 +7,7 @@ local animConnections = {}
 local charAddedConn = nil
 local viewmodel = nil
 
--- ---------- Блокировка перезарядки (ваш код) ----------
+-- ---------- Блокировка перезарядки ----------
 local function isReloadAnimation(animTrack)
     if not animTrack or not animTrack.Animation then return false end
     local animId = animTrack.Animation.AnimationId or ""
@@ -125,30 +125,9 @@ local function stopBlocking()
     print("[AntiReload] Блокировка выключена")
 end
 
--- ---------- Safe mod: телепорт на Y = 70 ----------
-local function teleportToSafeHeight()
-    local char = LocalPlayer.Character
-    if not char then
-        warn("[SafeMod] Персонаж не найден")
-        return
-    end
-
-    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-    if not root then
-        warn("[SafeMod] Не найдена часть для телепортации")
-        return
-    end
-
-    local currentPos = root.Position
-    local newPos = Vector3.new(currentPos.X, 70, currentPos.Z)
-    root.CFrame = CFrame.new(newPos)
-    print("[SafeMod] Телепортирован на Y = 70")
-end
-
 -- ---------- Экспорт для меню ----------
 return {
     Init = function(SeekGroup)
-        -- Переключатель для блокировки перезарядки
         SeekGroup:AddToggle("NoReloadToggle", {
             Text = "Убрать анимацию перезарядки",
             Default = false,
@@ -158,16 +137,6 @@ return {
                 else
                     stopBlocking()
                 end
-            end
-        })
-
-        -- Новая кнопка Safe mod
-        SeekGroup:AddButton({
-            Text = "Safe mod (подняться на Y=70)",
-            Callback = function()
-                teleportToSafeHeight()
-                -- Если у вас есть библиотека уведомлений, можно добавить:
-                -- Library:Notify({ Title = "Safe Mod", Description = "Телепорт выполнен!", Duration = 2 })
             end
         })
     end
