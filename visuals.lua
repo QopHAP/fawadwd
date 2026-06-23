@@ -9,11 +9,10 @@ local ESPEnabled = false      -- Highlight (3D)
 local NameESPEnabled = false
 local TracersEnabled = false
 local BoxEnabled = false
-local HealthBarEnabled = false
 local MaxDistance = 1000
 
 -- Таблицы для объектов рисования (по игроку)
-local Drawings = {}           -- player -> { box, name, tracer, healthBar, healthFill }
+local Drawings = {}           -- player -> { box, name, tracer }
 local renderConnection = nil
 
 -- ---------- Вспомогательная функция получения цвета по роли ----------
@@ -36,8 +35,6 @@ local function UpdatePlayerESP(player)
             box = Drawing.new("Square"),
             name = Drawing.new("Text"),
             tracer = Drawing.new("Line"),
-            healthBar = Drawing.new("Square"),
-            healthFill = Drawing.new("Square"),
         }
         local d = Drawings[player]
         -- Настройки бокса
@@ -52,10 +49,6 @@ local function UpdatePlayerESP(player)
         -- Настройки трейсера
         d.tracer.Thickness = 1.5
         d.tracer.Transparency = 0.7
-        -- Настройки Health Bar
-        d.healthBar.Color = Color3.fromRGB(0, 0, 0)
-        d.healthBar.Transparency = 0.6
-        d.healthFill.Color = Color3.fromRGB(0, 255, 80)
     end
 
     local d = Drawings[player]
@@ -69,8 +62,6 @@ local function UpdatePlayerESP(player)
         d.box.Visible = false
         d.name.Visible = false
         d.tracer.Visible = false
-        d.healthBar.Visible = false
-        d.healthFill.Visible = false
         return
     end
 
@@ -80,8 +71,6 @@ local function UpdatePlayerESP(player)
         d.box.Visible = false
         d.name.Visible = false
         d.tracer.Visible = false
-        d.healthBar.Visible = false
-        d.healthFill.Visible = false
         return
     end
 
@@ -93,8 +82,6 @@ local function UpdatePlayerESP(player)
         d.box.Visible = false
         d.name.Visible = false
         d.tracer.Visible = false
-        d.healthBar.Visible = false
-        d.healthFill.Visible = false
         return
     end
 
@@ -138,26 +125,6 @@ local function UpdatePlayerESP(player)
     else
         d.tracer.Visible = false
     end
-
-    -- ---- Health Bar ----
-    if HealthBarEnabled then
-        local hpRatio = hum.Health / hum.MaxHealth
-        local barWidth = 5
-        local barHeight = height
-        local barX = topPos.X - width/2 - 10
-        local barY = topPos.Y
-
-        d.healthBar.Size = Vector2.new(barWidth, barHeight)
-        d.healthBar.Position = Vector2.new(barX, barY)
-        d.healthBar.Visible = true
-
-        d.healthFill.Size = Vector2.new(barWidth, barHeight * hpRatio)
-        d.healthFill.Position = Vector2.new(barX, barY + (barHeight * (1 - hpRatio)))
-        d.healthFill.Visible = true
-    else
-        d.healthBar.Visible = false
-        d.healthFill.Visible = false
-    end
 end
 
 -- ---------- Обновление всех игроков ----------
@@ -174,8 +141,6 @@ local function UpdateAllPlayers()
             d.box:Remove()
             d.name:Remove()
             d.tracer:Remove()
-            d.healthBar:Remove()
-            d.healthFill:Remove()
             Drawings[player] = nil
         end
     end
@@ -183,7 +148,7 @@ end
 
 -- ---------- Функция включения/выключения рендера ----------
 local function UpdateRenderConnection()
-    if BoxEnabled or TracersEnabled or NameESPEnabled or HealthBarEnabled then
+    if BoxEnabled or TracersEnabled or NameESPEnabled then
         if not renderConnection then
             renderConnection = RunService.RenderStepped:Connect(UpdateAllPlayers)
         end
@@ -197,8 +162,6 @@ local function UpdateRenderConnection()
             d.box:Remove()
             d.name:Remove()
             d.tracer:Remove()
-            d.healthBar:Remove()
-            d.healthFill:Remove()
         end
         Drawings = {}
     end
@@ -317,16 +280,6 @@ return {
             Default = false,
             Callback = function(v)
                 BoxEnabled = v
-                UpdateRenderConnection()
-            end
-        })
-
-        -- Переключатель Health Bar
-        espGroup:AddToggle("HealthBarToggle", {
-            Text = "Health Bar (полоска здоровья)",
-            Default = false,
-            Callback = function(v)
-                HealthBarEnabled = v
                 UpdateRenderConnection()
             end
         })
