@@ -7,7 +7,7 @@ local animConnections = {}
 local charAddedConn = nil
 local viewmodel = nil
 
--- ---------- Блокировка перезарядки ----------
+-- ---------- Вспомогательная функция определения анимации перезарядки ----------
 local function isReloadAnimation(animTrack)
     if not animTrack or not animTrack.Animation then return false end
     local animId = animTrack.Animation.AnimationId or ""
@@ -16,6 +16,7 @@ local function isReloadAnimation(animTrack)
     return lower:find("reload") or lower:find("pump") or lower:find("recharging") or lower:find("reload")
 end
 
+-- ---------- Режим "Убрать анимацию" (полная остановка) ----------
 local function stopAnimationOnObject(obj)
     if obj:IsA("Humanoid") then
         for _, track in pairs(obj:GetPlayingAnimationTracks()) do
@@ -91,25 +92,98 @@ local function disableViewmodelReload()
     end
 end
 
-local function startBlocking()
+-- ---------- Режим "Бесконечная перезарядка" (ускорение анимации) ----------
+local function speedUpReloadAnimation(track)
+    if isReloadAnimation(track) then
+        track:AdjustSpeed(20)   -- ускоряем в 20 раз (мгновенно)
+    end
+end
+
+local function speedUpAllReloadAnims()
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, descendant in ipairs(char:GetDescendants()) do
+        if descendant:IsA("Humanoid") then
+            for _, track in pairs(descendant:GetPlayingAnimationTracks()) do
+                if isReloadAnimation(track) then
+                    track:AdjustSpeed(20)
+                end
+            end
+        elseif descendant:IsA("Animator") then
+            for _, track in pairs(descendant:GetChildren()) do
+                if track:IsA("AnimationTrack") and track.IsPlaying then
+                    if isReloadAnimation(track) then
+                        track:AdjustSpeed(20)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function onAnimationPlayedSpeed(track)
+    if isReloadAnimation(track) then
+        track:AdjustSpeed(20)
+    end
+end
+
+local function hookAllAnimatorsSpeed()
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, conn in ipairs(animConnections) do
+        conn:Disconnect()
+    end
+    table.clear(animConnections)
+    for _, descendant in ipairs(char:GetDescendants()) do
+        if descendant:IsA("Humanoid") then
+            local conn = descendant.AnimationPlayed:Connect(onAnimationPlayedSpeed)
+            table.insert(animConnections, conn)
+        end
+    end
+end
+
+-- ---------- Переменные для управления режимами ----------
+local stopMode = false   -- true = отключать анимацию, false = ускорять
+local isEnabled = false
+
+local function startBlocking(mode)
+    stopMode = (mode == "stop")   -- "stop" или "speed"
     if stopReloadConn then stopReloadConn:Disconnect() end
     if charAddedConn then charAddedConn:Disconnect() end
-    hookAllAnimators()
-    stopAllReloadAnims()
-    disableViewmodelReload()
-    charAddedConn = LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.1)
+
+    if stopMode then
         hookAllAnimators()
         stopAllReloadAnims()
         disableViewmodelReload()
-    end)
-    stopReloadConn = RunService.Heartbeat:Connect(function()
-        stopAllReloadAnims()
-        if not viewmodel or not viewmodel.Parent then
+    else
+        hookAllAnimatorsSpeed()
+        speedUpAllReloadAnims()
+    end
+
+    charAddedConn = LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(0.1)
+        if stopMode then
+            hookAllAnimators()
+            stopAllReloadAnims()
             disableViewmodelReload()
+        else
+            hookAllAnimatorsSpeed()
+            speedUpAllReloadAnims()
         end
     end)
-    print("[AntiReload] Анимация перезарядки полностью отключена")
+
+    stopReloadConn = RunService.Heartbeat:Connect(function()
+        if stopMode then
+            stopAllReloadAnims()
+            if not viewmodel or not viewmodel.Parent then
+                disableViewmodelReload()
+            end
+        else
+            speedUpAllReloadAnims()
+        end
+    end)
+
+    print("[AntiReload] Режим включен: " .. (stopMode and "остановка анимации" or "ускорение (бесконечная перезарядка)"))
 end
 
 local function stopBlocking()
@@ -122,20 +196,49 @@ local function stopBlocking()
     stopReloadConn = nil
     charAddedConn = nil
     viewmodel = nil
-    print("[AntiReload] Блокировка выключена")
+    isEnabled = false
+    print("[AntiReload] Все режимы отключены")
 end
 
 -- ---------- Экспорт для меню ----------
 return {
     Init = function(SeekGroup)
+        -- Переключатель "Убрать анимацию перезарядки" (старый)
         SeekGroup:AddToggle("NoReloadToggle", {
             Text = "Убрать анимацию перезарядки",
             Default = false,
             Callback = function(v)
                 if v then
-                    startBlocking()
+                    isEnabled = true
+                    startBlocking("stop")
                 else
-                    stopBlocking()
+                    if isEnabled then
+                        -- Если другой режим включён, не выключаем полностью
+                        -- Но для простоты отключаем всё, если оба выключены
+                        if not SeekGroup:FindFirstChild("InstantReloadToggle") or not SeekGroup.InstantReloadToggle.CurrentValue then
+                            stopBlocking()
+                        end
+                    end
+                    isEnabled = false
+                end
+            end
+        })
+
+        -- Переключатель "Бесконечная перезарядка" (ускорение)
+        SeekGroup:AddToggle("InstantReloadToggle", {
+            Text = "Бесконечная перезарядка (мгновенно)",
+            Default = false,
+            Callback = function(v)
+                if v then
+                    isEnabled = true
+                    startBlocking("speed")
+                else
+                    if isEnabled then
+                        if not SeekGroup:FindFirstChild("NoReloadToggle") or not SeekGroup.NoReloadToggle.CurrentValue then
+                            stopBlocking()
+                        end
+                    end
+                    isEnabled = false
                 end
             end
         })
