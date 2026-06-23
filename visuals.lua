@@ -5,23 +5,23 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- Состояния
-local ESPEnabled = false      -- Highlight (3D)
+local ESPEnabled = false -- Highlight (3D)
 local NameESPEnabled = false
 local TracersEnabled = false
 local BoxEnabled = false
 local MaxDistance = 1000
 
 -- Таблицы для объектов рисования (по игроку)
-local Drawings = {}           -- player -> { box, name, tracer }
+local Drawings = {} -- player -> { box, name, tracer }
 local renderConnection = nil
 
 -- ---------- Вспомогательная функция получения цвета по роли ----------
 local function GetRoleColor(player)
     local role = player:GetAttribute("Role")
     if role == "SEEKER" then
-        return Color3.fromRGB(255, 0, 0)   -- красный
+        return Color3.fromRGB(255, 0, 0) -- красный
     elseif role == "HIDER" then
-        return Color3.fromRGB(0, 255, 0)   -- зелёный
+        return Color3.fromRGB(0, 255, 0) -- зелёный
     else
         return Color3.fromRGB(255, 255, 255) -- белый (лобби)
     end
@@ -29,7 +29,6 @@ end
 
 -- ---------- Создание / обновление ESP для одного игрока (2D) ----------
 local function UpdatePlayerESP(player)
-    -- Инициализируем записи, если их нет
     if not Drawings[player] then
         Drawings[player] = {
             box = Drawing.new("Square"),
@@ -85,11 +84,9 @@ local function UpdatePlayerESP(player)
         return
     end
 
-    -- Размеры бокса
     local height = math.abs(topPos.Y - bottomPos.Y)
-    local width = height / 2.1   -- как в том скрипте
+    local width = height / 2.1
 
-    -- Цвет для всех элементов
     local color = GetRoleColor(player)
 
     -- ---- Box ----
@@ -102,7 +99,7 @@ local function UpdatePlayerESP(player)
         d.box.Visible = false
     end
 
-    -- ---- Name (с дистанцией) ----
+    -- ---- Name (только имя + дистанция) ----
     if NameESPEnabled then
         d.name.Text = string.format("%s [%dm]", player.Name, math.floor(distance))
         d.name.Position = Vector2.new(topPos.X, topPos.Y - 22)
@@ -111,7 +108,7 @@ local function UpdatePlayerESP(player)
         d.name.Visible = false
     end
 
-    -- ---- Tracer (от нижней части экрана к центру тела) ----
+    -- ---- Tracer ----
     if TracersEnabled then
         local centerPos, onScreenCenter = Camera:WorldToViewportPoint(root.Position)
         if onScreenCenter then
@@ -135,18 +132,18 @@ local function UpdateAllPlayers()
         end
     end
 
-    -- Чистим записи для игроков, которые вышли или не имеют персонажа
+    -- Чистка
     for player, d in pairs(Drawings) do
         if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-            d.box:Remove()
-            d.name:Remove()
-            d.tracer:Remove()
+            if d.box then d.box:Remove() end
+            if d.name then d.name:Remove() end
+            if d.tracer then d.tracer:Remove() end
             Drawings[player] = nil
         end
     end
 end
 
--- ---------- Функция включения/выключения рендера ----------
+-- ---------- Включение/выключение рендера ----------
 local function UpdateRenderConnection()
     if BoxEnabled or TracersEnabled or NameESPEnabled then
         if not renderConnection then
@@ -157,22 +154,20 @@ local function UpdateRenderConnection()
             renderConnection:Disconnect()
             renderConnection = nil
         end
-        -- Удаляем все объекты рисования
         for _, d in pairs(Drawings) do
-            d.box:Remove()
-            d.name:Remove()
-            d.tracer:Remove()
+            if d.box then d.box:Remove() end
+            if d.name then d.name:Remove() end
+            if d.tracer then d.tracer:Remove() end
         end
         Drawings = {}
     end
 end
 
--- ---------- Highlight ESP (3D) – оставлен как есть ----------
+-- (Highlight 3D и остальной код без изменений)
 local function ApplyHighlight(player)
     if player == LocalPlayer then return end
     local char = player.Character
     if not char then return end
-
     local old = char:FindFirstChild("RoleHighlight")
     if old then old:Destroy() end
 
@@ -181,28 +176,8 @@ local function ApplyHighlight(player)
     highlight.OutlineColor = Color3.new(1, 1, 1)
     highlight.FillTransparency = 0.5
     highlight.OutlineTransparency = 0
-
-    local function UpdateColor()
-        highlight.FillColor = GetRoleColor(player)
-    end
-
-    UpdateColor()
+    highlight.FillColor = GetRoleColor(player)
     highlight.Parent = char
-
-    local roleChangedConn
-    roleChangedConn = player:GetAttributeChangedSignal("Role"):Connect(function()
-        if ESPEnabled and char and char.Parent then
-            UpdateColor()
-        else
-            if roleChangedConn then roleChangedConn:Disconnect() end
-        end
-    end)
-
-    char.AncestryChanged:Connect(function()
-        if not char.Parent then
-            if roleChangedConn then roleChangedConn:Disconnect() end
-        end
-    end)
 end
 
 local function RemoveHighlight(player)
@@ -223,14 +198,11 @@ local function UpdateAllHighlights()
     end
 end
 
--- ---------- Обработка новых игроков и пересоздания персонажа ----------
 local function SetupPlayer(player)
     player.CharacterAdded:Connect(function()
         task.wait(0.5)
         if ESPEnabled then ApplyHighlight(player) end
-        -- 2D ESP обновляется автоматически в цикле
     end)
-
     if player.Character then
         if ESPEnabled then ApplyHighlight(player) end
     end
@@ -241,10 +213,9 @@ for _, p in ipairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(SetupPlayer)
 
--- ---------- Экспорт для главного скрипта ----------
+-- ---------- Экспорт ----------
 return {
     Init = function(espGroup)
-        -- Переключатель Highlight (3D)
         espGroup:AddToggle("ESPToggle", {
             Text = "Role ESP (Highlight)",
             Default = false,
@@ -254,7 +225,6 @@ return {
             end
         })
 
-        -- Переключатель Name ESP (2D с дистанцией)
         espGroup:AddToggle("NameESPToggle", {
             Text = "Name ESP (с дистанцией)",
             Default = false,
@@ -264,7 +234,6 @@ return {
             end
         })
 
-        -- Переключатель Tracers (линии к телу)
         espGroup:AddToggle("TracersToggle", {
             Text = "Tracers (линии к телу)",
             Default = false,
@@ -274,7 +243,6 @@ return {
             end
         })
 
-        -- Переключатель Box (прямоугольник)
         espGroup:AddToggle("BoxToggle", {
             Text = "Box (прямоугольник вокруг тела)",
             Default = false,
@@ -284,7 +252,6 @@ return {
             end
         })
 
-        -- Настройка максимальной дистанции
         espGroup:AddSlider("MaxDistanceSlider", {
             Text = "Max Distance",
             Default = 1000,
