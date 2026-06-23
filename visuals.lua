@@ -9,9 +9,11 @@ local ESPEnabled = false      -- Highlight (3D)
 local NameESPEnabled = false
 local TracersEnabled = false
 local BoxEnabled = false
+local HealthBarEnabled = false
+local MaxDistance = 1000
 
 -- Таблицы для объектов рисования (по игроку)
-local Drawings = {}           -- player -> { box, name, tracer }
+local Drawings = {}           -- player -> { box, name, tracer, healthBar, healthFill }
 local renderConnection = nil
 
 -- ---------- Вспомогательная функция получения цвета по роли ----------
@@ -34,6 +36,8 @@ local function UpdatePlayerESP(player)
             box = Drawing.new("Square"),
             name = Drawing.new("Text"),
             tracer = Drawing.new("Line"),
+            healthBar = Drawing.new("Square"),
+            healthFill = Drawing.new("Square"),
         }
         local d = Drawings[player]
         -- Настройки бокса
@@ -48,6 +52,10 @@ local function UpdatePlayerESP(player)
         -- Настройки трейсера
         d.tracer.Thickness = 1.5
         d.tracer.Transparency = 0.7
+        -- Настройки Health Bar
+        d.healthBar.Color = Color3.fromRGB(0, 0, 0)
+        d.healthBar.Transparency = 0.6
+        d.healthFill.Color = Color3.fromRGB(0, 255, 80)
     end
 
     local d = Drawings[player]
@@ -61,16 +69,19 @@ local function UpdatePlayerESP(player)
         d.box.Visible = false
         d.name.Visible = false
         d.tracer.Visible = false
+        d.healthBar.Visible = false
+        d.healthFill.Visible = false
         return
     end
 
     -- Расстояние до игрока
     local distance = (Camera.CFrame.Position - root.Position).Magnitude
-    local maxDist = 1000
-    if distance > maxDist then
+    if distance > MaxDistance then
         d.box.Visible = false
         d.name.Visible = false
         d.tracer.Visible = false
+        d.healthBar.Visible = false
+        d.healthFill.Visible = false
         return
     end
 
@@ -82,6 +93,8 @@ local function UpdatePlayerESP(player)
         d.box.Visible = false
         d.name.Visible = false
         d.tracer.Visible = false
+        d.healthBar.Visible = false
+        d.healthFill.Visible = false
         return
     end
 
@@ -113,7 +126,6 @@ local function UpdatePlayerESP(player)
 
     -- ---- Tracer (от нижней части экрана к центру тела) ----
     if TracersEnabled then
-        -- Используем центр тела (root) для трейсера
         local centerPos, onScreenCenter = Camera:WorldToViewportPoint(root.Position)
         if onScreenCenter then
             d.tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
@@ -125,6 +137,26 @@ local function UpdatePlayerESP(player)
         end
     else
         d.tracer.Visible = false
+    end
+
+    -- ---- Health Bar ----
+    if HealthBarEnabled then
+        local hpRatio = hum.Health / hum.MaxHealth
+        local barWidth = 5
+        local barHeight = height
+        local barX = topPos.X - width/2 - 10
+        local barY = topPos.Y
+
+        d.healthBar.Size = Vector2.new(barWidth, barHeight)
+        d.healthBar.Position = Vector2.new(barX, barY)
+        d.healthBar.Visible = true
+
+        d.healthFill.Size = Vector2.new(barWidth, barHeight * hpRatio)
+        d.healthFill.Position = Vector2.new(barX, barY + (barHeight * (1 - hpRatio)))
+        d.healthFill.Visible = true
+    else
+        d.healthBar.Visible = false
+        d.healthFill.Visible = false
     end
 end
 
@@ -142,6 +174,8 @@ local function UpdateAllPlayers()
             d.box:Remove()
             d.name:Remove()
             d.tracer:Remove()
+            d.healthBar:Remove()
+            d.healthFill:Remove()
             Drawings[player] = nil
         end
     end
@@ -149,7 +183,7 @@ end
 
 -- ---------- Функция включения/выключения рендера ----------
 local function UpdateRenderConnection()
-    if BoxEnabled or TracersEnabled or NameESPEnabled then
+    if BoxEnabled or TracersEnabled or NameESPEnabled or HealthBarEnabled then
         if not renderConnection then
             renderConnection = RunService.RenderStepped:Connect(UpdateAllPlayers)
         end
@@ -163,6 +197,8 @@ local function UpdateRenderConnection()
             d.box:Remove()
             d.name:Remove()
             d.tracer:Remove()
+            d.healthBar:Remove()
+            d.healthFill:Remove()
         end
         Drawings = {}
     end
@@ -282,6 +318,28 @@ return {
             Callback = function(v)
                 BoxEnabled = v
                 UpdateRenderConnection()
+            end
+        })
+
+        -- Переключатель Health Bar
+        espGroup:AddToggle("HealthBarToggle", {
+            Text = "Health Bar (полоска здоровья)",
+            Default = false,
+            Callback = function(v)
+                HealthBarEnabled = v
+                UpdateRenderConnection()
+            end
+        })
+
+        -- Настройка максимальной дистанции
+        espGroup:AddSlider("MaxDistanceSlider", {
+            Text = "Max Distance",
+            Default = 1000,
+            Min = 100,
+            Max = 2000,
+            Increment = 50,
+            Callback = function(v)
+                MaxDistance = v
             end
         })
     end
