@@ -7,42 +7,37 @@ local animConnections = {}
 local charAddedConn = nil
 local viewmodel = nil
 
--- ---------- Вспомогательная функция определения анимации перезарядки ----------
+-- Улучшенное определение анимации перезарядки
 local function isReloadAnimation(animTrack)
     if not animTrack or not animTrack.Animation then return false end
     local animId = animTrack.Animation.AnimationId or ""
-    local name = animTrack.Name or ""
-    local lower = (animId .. name):lower()
-    return lower:find("reload") or lower:find("pump") or lower:find("recharging") or lower:find("reload")
+    local name = (animTrack.Name or ""):lower()
+    local lowerId = animId:lower()
+    
+    return name:find("reload") or name:find("pump") or name:find("recharge") or
+           lowerId:find("reload") or lowerId:find("pump") or lowerId:find("recharge")
 end
 
--- ---------- Режим "Убрать анимацию" (полная остановка) ----------
-local function stopAnimationOnObject(obj)
-    if obj:IsA("Humanoid") then
-        for _, track in pairs(obj:GetPlayingAnimationTracks()) do
-            if isReloadAnimation(track) then
-                track:Stop(0)
-                track:AdjustSpeed(0)
-            end
-        end
-    elseif obj:IsA("Animator") then
-        for _, track in pairs(obj:GetChildren()) do
-            if track:IsA("AnimationTrack") and track.IsPlaying then
+-- ========== СТОП АНИМАЦИИ (убрать перезарядку) ==========
+local function stopReloadAnims()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    for _, descendant in ipairs(char:GetDescendants()) do
+        if descendant:IsA("Humanoid") then
+            for _, track in pairs(descendant:GetPlayingAnimationTracks()) do
                 if isReloadAnimation(track) then
                     track:Stop(0)
                     track:AdjustSpeed(0)
                 end
             end
-        end
-    end
-end
-
-local function stopAllReloadAnims()
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, descendant in ipairs(char:GetDescendants()) do
-        if descendant:IsA("Humanoid") or descendant:IsA("Animator") then
-            stopAnimationOnObject(descendant)
+        elseif descendant:IsA("Animator") then
+            for _, track in pairs(descendant:GetPlayingAnimationTracks()) do
+                if isReloadAnimation(track) then
+                    track:Stop(0)
+                    track:AdjustSpeed(0)
+                end
+            end
         end
     end
 end
@@ -54,13 +49,12 @@ local function onAnimationPlayed(track)
     end
 end
 
-local function hookAllAnimators()
+local function hookAnimators()
     local char = LocalPlayer.Character
     if not char then return end
-    for _, conn in ipairs(animConnections) do
-        conn:Disconnect()
-    end
+    for _, conn in ipairs(animConnections) do conn:Disconnect() end
     table.clear(animConnections)
+
     for _, descendant in ipairs(char:GetDescendants()) do
         if descendant:IsA("Humanoid") then
             local conn = descendant.AnimationPlayed:Connect(onAnimationPlayed)
@@ -69,174 +63,128 @@ local function hookAllAnimators()
     end
 end
 
-local function disableViewmodelReload()
-    local possibleViewmodels = {
-        workspace:FindFirstChild("Viewmodel"),
-        LocalPlayer:FindFirstChild("Viewmodel"),
-        LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Viewmodel"),
-        workspace:FindFirstChild("AimPracticeVM")
-    }
-    for _, vm in ipairs(possibleViewmodels) do
-        if vm then
-            if vm:IsA("Model") and vm:FindFirstChild("Humanoid") then
-                if vm:GetAttribute("ReloadEnabled") ~= nil then
-                    vm:SetAttribute("ReloadEnabled", false)
-                end
-                if vm.EnableReload ~= nil then
-                    vm.EnableReload = false
-                end
-            end
-            viewmodel = vm
-            break
-        end
-    end
-end
-
--- ---------- Режим "Бесконечная перезарядка" (ускорение анимации) ----------
-local function speedUpReloadAnimation(track)
-    if isReloadAnimation(track) then
-        track:AdjustSpeed(20)   -- ускоряем в 20 раз (мгновенно)
-    end
-end
-
-local function speedUpAllReloadAnims()
+-- ========== БЕСКОНЕЧНАЯ ПЕРЕЗАРЯДКА (мгновенно) ==========
+local function instantReload()
     local char = LocalPlayer.Character
     if not char then return end
-    for _, descendant in ipairs(char:GetDescendants()) do
-        if descendant:IsA("Humanoid") then
-            for _, track in pairs(descendant:GetPlayingAnimationTracks()) do
-                if isReloadAnimation(track) then
-                    track:AdjustSpeed(20)
-                end
-            end
-        elseif descendant:IsA("Animator") then
-            for _, track in pairs(descendant:GetChildren()) do
-                if track:IsA("AnimationTrack") and track.IsPlaying then
-                    if isReloadAnimation(track) then
-                        track:AdjustSpeed(20)
-                    end
-                end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return end
+
+    for _, v in ipairs(tool:GetDescendants()) do
+        if v:IsA("IntValue") or v:IsA("NumberValue") then
+            local name = v.Name:lower()
+            if name:find("ammo") or name:find("clip") or name:find("magazine") or name:find("bullets") then
+                v.Value = 9999
             end
         end
+    end
+end
+
+local function speedUpReload(track)
+    if isReloadAnimation(track) then
+        track:AdjustSpeed(50) -- очень быстро
     end
 end
 
 local function onAnimationPlayedSpeed(track)
     if isReloadAnimation(track) then
-        track:AdjustSpeed(20)
+        task.defer(function()
+            track:AdjustSpeed(50)
+        end)
     end
 end
 
-local function hookAllAnimatorsSpeed()
+-- ========== Общие функции ==========
+local function disableReloadFeatures()
     local char = LocalPlayer.Character
     if not char then return end
-    for _, conn in ipairs(animConnections) do
-        conn:Disconnect()
-    end
-    table.clear(animConnections)
-    for _, descendant in ipairs(char:GetDescendants()) do
-        if descendant:IsA("Humanoid") then
-            local conn = descendant.AnimationPlayed:Connect(onAnimationPlayedSpeed)
-            table.insert(animConnections, conn)
+    
+    -- Viewmodel
+    for _, vm in ipairs({workspace:FindFirstChild("Viewmodel"), char:FindFirstChild("Viewmodel")}) do
+        if vm then
+            if vm:GetAttribute("ReloadEnabled") ~= nil then vm:SetAttribute("ReloadEnabled", false) end
+            if vm:FindFirstChild("EnableReload") then vm.EnableReload.Value = false end
+            if vm:FindFirstChild("Reload") then vm.Reload.Value = false end
         end
     end
 end
 
--- ---------- Переменные для управления режимами ----------
-local stopMode = false   -- true = отключать анимацию, false = ускорять
+local stopMode = true -- true = остановить анимацию, false = мгновенная
 local isEnabled = false
 
-local function startBlocking(mode)
-    stopMode = (mode == "stop")   -- "stop" или "speed"
+local function startAntiReload(mode)
+    stopMode = (mode == "stop")
+    -- очистка старых
     if stopReloadConn then stopReloadConn:Disconnect() end
     if charAddedConn then charAddedConn:Disconnect() end
 
     if stopMode then
-        hookAllAnimators()
-        stopAllReloadAnims()
-        disableViewmodelReload()
+        hookAnimators()
+        stopReloadAnims()
+        disableReloadFeatures()
     else
-        hookAllAnimatorsSpeed()
-        speedUpAllReloadAnims()
+        -- мгновенный режим
+        hookAnimators()
     end
 
     charAddedConn = LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.1)
+        task.wait(0.3)
         if stopMode then
-            hookAllAnimators()
-            stopAllReloadAnims()
-            disableViewmodelReload()
-        else
-            hookAllAnimatorsSpeed()
-            speedUpAllReloadAnims()
+            hookAnimators()
+            stopReloadAnims()
+            disableReloadFeatures()
         end
     end)
 
     stopReloadConn = RunService.Heartbeat:Connect(function()
         if stopMode then
-            stopAllReloadAnims()
-            if not viewmodel or not viewmodel.Parent then
-                disableViewmodelReload()
-            end
+            stopReloadAnims()
+            disableReloadFeatures()
         else
-            speedUpAllReloadAnims()
+            instantReload()
         end
     end)
 
-    print("[AntiReload] Режим включен: " .. (stopMode and "остановка анимации" or "ускорение (бесконечная перезарядка)"))
+    print("[AntiReload] Включён режим:", stopMode and "Полная остановка анимации" or "Мгновенная перезарядка + бесконечные патроны")
 end
 
-local function stopBlocking()
+local function stopAntiReload()
     if stopReloadConn then stopReloadConn:Disconnect() end
     if charAddedConn then charAddedConn:Disconnect() end
-    for _, conn in ipairs(animConnections) do
-        conn:Disconnect()
-    end
+    for _, conn in ipairs(animConnections) do conn:Disconnect() end
     table.clear(animConnections)
-    stopReloadConn = nil
-    charAddedConn = nil
-    viewmodel = nil
-    isEnabled = false
-    print("[AntiReload] Все режимы отключены")
+    print("[AntiReload] Отключено")
 end
 
--- ---------- Экспорт для меню ----------
+-- ========== Экспорт в меню ==========
 return {
     Init = function(SeekGroup)
-        -- Переключатель "Убрать анимацию перезарядки" (старый)
         SeekGroup:AddToggle("NoReloadToggle", {
             Text = "Убрать анимацию перезарядки",
             Default = false,
             Callback = function(v)
                 if v then
                     isEnabled = true
-                    startBlocking("stop")
+                    startAntiReload("stop")
                 else
-                    if isEnabled then
-                        -- Если другой режим включён, не выключаем полностью
-                        -- Но для простоты отключаем всё, если оба выключены
-                        if not SeekGroup:FindFirstChild("InstantReloadToggle") or not SeekGroup.InstantReloadToggle.CurrentValue then
-                            stopBlocking()
-                        end
+                    if not SeekGroup:FindFirstChild("InstantReloadToggle") or not SeekGroup.InstantReloadToggle.CurrentValue then
+                        stopAntiReload()
                     end
                     isEnabled = false
                 end
             end
         })
 
-        -- Переключатель "Бесконечная перезарядка" (ускорение)
         SeekGroup:AddToggle("InstantReloadToggle", {
-            Text = "Бесконечная перезарядка (мгновенно)",
+            Text = "Бесконечная перезарядка + патроны",
             Default = false,
             Callback = function(v)
                 if v then
                     isEnabled = true
-                    startBlocking("speed")
+                    startAntiReload("speed")
                 else
-                    if isEnabled then
-                        if not SeekGroup:FindFirstChild("NoReloadToggle") or not SeekGroup.NoReloadToggle.CurrentValue then
-                            stopBlocking()
-                        end
+                    if not SeekGroup:FindFirstChild("NoReloadToggle") or not SeekGroup.NoReloadToggle.CurrentValue then
+                        stopAntiReload()
                     end
                     isEnabled = false
                 end
